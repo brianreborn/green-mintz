@@ -1,1 +1,289 @@
-PLACEHOLDER
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "green-mintz",
+  "product": "green-mintz",
+  "formerly": "GrokBot / grokbot-cashapp-coach",
+  "version": "1.5.0",
+  "description": "Mint, commission, buy, sell, and trade art as NFTs. Liquid crypto is the funding book. Cash App is only an edge hop. User steers pools in Grok. User watches and can stop.",
+  "operatingMode": "pool_split_multi_venue",
+  "cashAppRole": "edge_transfer_only",
+  "confirmSwitch": {
+    "id": "GB-MODE",
+    "type": "all_or_nothing",
+    "values": ["development", "production"],
+    "default": "development",
+    "development": {
+      "coachAcceptsRecommendation": "user_confirm_every_step",
+      "emitCoachTapList": true,
+      "reAskBeforeEachScheduledCycle": true,
+      "pressCashAppConfirm": false
+    },
+    "production": {
+      "coachAcceptsRecommendation": "auto_confirm",
+      "emitCoachTapList": true,
+      "reAskBeforeEachScheduledCycle": false,
+      "pressCashAppConfirm": false,
+      "repeatingWork": "coinbase_advanced_trade_api_view_trade_key_only"
+    },
+    "future": {
+      "id": "OQ-GB5",
+      "confirmThreshold": "not specified yet — replace all-or-nothing with criteria"
+    }
+  },
+  "livePolicy": {
+    "holdExistingBtcOnRampUntilHop": true,
+    "existingBtcNote": "Cash App BTC under $10 stays on the ramp. Prefer Lightning to Coinbase. Do not on-chain hop this size.",
+    "takeProfit": null,
+    "floor": null,
+    "confirmMode": "development",
+    "runUntilStop": true,
+    "supervised": true,
+    "userWatches": true,
+    "stopMeans": "user says stop. Cancel open Coinbase orders. Revoke the trade key.",
+    "stopIsImmediate": true
+  },
+  "killSwitch": {
+    "id": "GB-STOP",
+    "who": "user only",
+    "phrases": ["stop", "kill it", "something is wrong"],
+    "coachDoes": ["stop new orders", "cancel-open-orders tap list", "stop local mine worker"],
+    "userDoes": ["Cancel open Coinbase orders. Revoke view+trade key if needed."],
+    "afterStop": "Nothing keeps buying. Optional return hop to Cash App later."
+  },
+  "decentExit": {
+    "id": "GB-SELL",
+    "purpose": "Good-enough timing helper for a user-signed sell. Not a Cash App trading engine. Not Auto Invest.",
+    "watchWindowMinutes": 10,
+    "priceSource": "public BTC-USD",
+    "doNotOptimize": ["local_minima", "local_maxima", "tick_perfect_timing"],
+    "goodEnoughRule": "Open a 10-minute window on public BTC-USD. Bias to sell in the first print at or above the window open, or after a small bounce off an early dip. Market at minute 10 if nothing nicer.",
+    "execution": {
+      "preferred": "coinbase_advanced_trade_when_the_book_is_on_coinbase",
+      "rampOnly": "Cash App sell only if the user is flattening on the ramp to dollars, not as the strategy"
+    },
+    "doesNot": ["scrape Cash App", "press Confirm", "guarantee a high"]
+  },
+  "custody": {
+    "holder": "user Cash App (ramp) and user Coinbase / wallets (books)",
+    "grokMayReceiveBitcoin": false,
+    "grokMayStoreCashAppLogin": false,
+    "projectDepositAddress": null
+  },
+  "judgment": {
+    "inScope": true,
+    "commands": ["recommend_policy"],
+    "inputs": ["user-typed balances and fills", "public market context"],
+    "outputs": ["poolSplit", "venueWeights", "takeProfit", "floor", "hopNow", "listOwnArt"],
+    "userMay": ["accept", "edit", "reject"]
+  },
+  "venue": "Coinbase Advanced Trade",
+  "ramp": "Cash App — edge transfer only",
+  "purpose": {
+    "bestPart": "mint own art, take commissions, list and trade NFTs for real work — commissioning, buying, selling",
+    "fundingBook": "Coinbase Advanced Trade *-USDC so the art book has liquid capital",
+    "onRamp": "Cash App moves value in and out. Lightning first, USDC second, on-chain last.",
+    "notThePoint": "trading inside Cash App or holding BTC for its own sake"
+  },
+  "commissions": {
+    "id": "GM-COMM",
+    "inScope": true,
+    "venues": ["vgen", "fantia"],
+    "role": "human commission work sits next to minting. Not NFT fills.",
+    "flow": [
+      "share finished or in-progress art into green-mintz",
+      "choose keep-private, offer-as-commission, mint-as-nft, or any mix",
+      "open VGen or Fantia with a tap list — user posts and delivers there",
+      "do not mint a client's exclusive piece without an explicit rights flag"
+    ],
+    "doesNot": [
+      "scrape VGen or Fantia",
+      "auto-post commissions",
+      "treat VGen or Fantia as NFT markets"
+    ]
+  },
+  "inScopeAssets": ["USDC", "BTC", "ETH", "SOL", "other_coinbase_spot_with_usdc_book"],
+  "onlineOnly": {
+    "bankRequired": false,
+    "fiatUsdBalanceRequired": false,
+    "quoteAsset": "USDC",
+    "pair": "*-USDC",
+    "preferLowFee": "Advanced Trade maker/taker, not Cash App market buy/sell and not Coinbase Simple",
+    "identity": "Coinbase US still asks for ID. That is not a bank.",
+    "smallSeedHop": "Lightning Cash App BTC balance → Coinbase Lightning invoice. Not on-chain."
+  },
+  "rails": {
+    "inPreferred": "Cash App Lightning pay-from-BTC to a Coinbase Lightning invoice the user creates. Grok never supplies an invoice.",
+    "inFallback": "Sell on Cash App to dollars, send USDC on Solana/Base to the user's Coinbase USDC address.",
+    "inLocked": "On-chain BTC until the pile clears Cash App free Standard floor (~100,000 sats).",
+    "trade": "Coinbase Advanced Trade any liquid *-USDC spot pair. View+trade key only. Transfer off.",
+    "out": "Return hop to the user's Cash App receive (Lightning if both sides allow, else on-chain when size allows). Dollars via native Cash App Sell + Cash Out.",
+    "stop": "Say stop here. Cancel open Coinbase orders. Revoke the trade key."
+  },
+  "outOfScope": [
+    "cash_app_as_trading_venue",
+    "cash_app_auto_invest_as_engine",
+    "cash_app_custom_orders_as_engine",
+    "cash_app_api_trading",
+    "accessibility_confirm_on_cash_app",
+    "bank_link",
+    "ACH",
+    "debit_card_funding",
+    "bot_transfer_permission",
+    "leverage_futures_perp",
+    "reddit_giveaway_bots",
+    "mint_snipers",
+    "wash_trading",
+    "root_to_tap_other_apps",
+    "root_to_hide_from_cash_app_or_coinbase",
+    "root_to_read_other_app_private_data",
+    "android_vm_kyc_as_grok",
+    "register_coinbase_as_grok"
+  ],
+  "kernelSu": {
+    "id": "GB-KSU",
+    "optional": true,
+    "default": "off",
+    "required": false,
+    "onlyIf": "user device already has KernelSU; GrokBot never installs a root manager",
+    "purpose": "local mining and local mint prep only",
+    "allowed": [
+      "extra CPU/GPU/IO inside GrokBot's own process",
+      "cgroup / cpuset / nice for mine and mint workers",
+      "wake-lock with thermal and battery caps",
+      "local IPFS or metadata encode for own-art mint"
+    ],
+    "forbidden": [
+      "su into Cash App, Coinbase, wallets, or any other package",
+      "Accessibility plus root",
+      "press Confirm anywhere",
+      "hide KernelSU from banking or exchange apps",
+      "read another app's private data by privilege",
+      "uncapped background mining"
+    ],
+    "safety": {
+      "mustShow": "ROOT OPTIONAL badge when the worker is armed",
+      "stopKillsWorker": true,
+      "noRootPath": "mint still works via user wallet sign"
+    },
+    "honesty": "A phone will not profit-mine Bitcoin."
+  },
+  "pools": {
+    "id": "GB-SPLIT",
+    "interface": "two sliders then per-venue sliders",
+    "defaultSplit": { "liquidCrypto": 50, "nft": 50 },
+    "liquidCryptoMeans": ["BTC", "ETH", "SOL", "other Coinbase *-USDC with a real book"],
+    "nftMeans": ["collection bids and listings", "own-art listings"],
+    "rebalance": "periodic when drift exceeds bandPct",
+    "bandPct": 10,
+    "userTurns": "any pool or venue weight to 0 instantly"
+  },
+  "ux": {
+    "primarySurface": "Grok chat on Android 1080x2400",
+    "screens": ["home_pools", "venues", "retrieve", "art", "share_inbox"],
+    "shareTarget": {
+      "like": "japanglify PROCESS_TEXT and ACTION_SEND",
+      "intents": ["ACTION_SEND text/plain", "ACTION_SEND image/*", "ACTION_PROCESS_TEXT"],
+      "primaryLanding": "art mint-and-list when the payload is an image the user made",
+      "alsoAccepts": ["Cash App screenshot as hop insight only"],
+      "doesNot": ["press Confirm", "store a receive address in Grok chat", "mint to a Grok wallet"]
+    },
+    "alwaysVisible": ["splitBar", "stop"],
+    "speakable": true,
+    "noAddressesInChat": true,
+    "tapTargetMinDp": 48,
+    "emptySeedCopy": "Ramp pile is too small for on-chain. Use Lightning or leave it. Sliders are armed."
+  },
+  "venues": {
+    "fungible": {
+      "coinbaseAdvanced": { "weight": 100, "pairStyle": "*-USDC", "key": "view+trade only" }
+    },
+    "nftTrade": {
+      "blur": { "chain": "ethereum", "weightDefault": 25 },
+      "tensor": { "chain": "solana", "weightDefault": 20 },
+      "chadbot": { "chain": "solana", "weightDefault": 15 },
+      "magicEden": { "chain": "solana_plus_ordinals", "weightDefault": 15 },
+      "openseaReservoir": { "chain": "evm_aggregate", "weightDefault": 10 },
+      "agentVault": { "chain": "bitcoin_l1_opnet", "weightDefault": 5 },
+      "bonsaiBazaar": { "chain": "agent", "weightDefault": 5 },
+      "botmesh": { "chain": "agent_social", "weightDefault": 5, "role": "discovery not fill" }
+    },
+    "notAVenue": ["Cash App", "Reddit.com"]
+  },
+  "ownArt": {
+    "id": "GB-MINT",
+    "inScope": true,
+    "whoOwns": "user wallet only",
+    "flow": [
+      "user shares an image into GrokBot or picks a file",
+      "coach picks cheapest viable chain (Base or Solana first)",
+      "user signs the mint",
+      "list on NFT venues whose weight is above zero"
+    ],
+    "doesNot": ["mint to a Grok address", "spend the Cash App seed on 0.25 ETH companion mints"]
+  },
+  "nft": {
+    "inScope": true,
+    "gates": {
+      "mustBeAbleToSellSameDay": true,
+      "doNotFundFromSub10OnChainHop": true
+    }
+  },
+  "layoutLikeJapanglify": {
+    "domain": "pure Kotlin/JVM — pools, hop policy, decent-exit, share classify, stop. Zero Android deps.",
+    "app": "Android shell — share target, Retrieve, Art, sliders. Depends on domain. No domain→app dep.",
+    "botCommand": "./gradlew :domain:test  (JDK 17+, no Android SDK)",
+    "appTests": "manual on the user's spare unrooted phone"
+  },
+  "testing": {
+    "bots": [
+      "./gradlew :domain:test when the Kotlin module exists",
+      "python3 decent_exit.py --once (interim)",
+      "python3 sandbox_smoke.py"
+    ],
+    "domainMustCover": [
+      "pool split sums to 100",
+      "venue weight renormalize and zero-weight means no new capital",
+      "hop policy: lightning first, usdc second, on-chain locked under Standard floor",
+      "decent-exit wait / sell_now / sell_at_expiry",
+      "stop cancels new work",
+      "share payload art vs screenshot",
+      "never emit a receive address"
+    ],
+    "botsMustNot": ["Android VM KYC", "register Coinbase as Grok", "move the Cash App seed", "instrument Cash App UI"],
+    "device": {
+      "providedBy": "user",
+      "kind": "old working phone, unrooted",
+      "kernelSu": "off — this device tests the no-root path only",
+      "mustStillWork": ["chat sliders", "Retrieve Lightning tap list", "share-to-Art", "Stop", "wallet sign if a wallet is installed"],
+      "mustNotRequire": ["KernelSU", "Accessibility Confirm", "Grok custody"]
+    },
+    "userPhone": "Lightning hop of the tiny seed after Confirm screen shows cents"
+  },
+  "commandTypes": [
+    "set_confirm_mode",
+    "recommend_policy",
+    "get_policy",
+    "set_policy",
+    "coach_hop_lightning",
+    "coach_hop_usdc",
+    "coach_decent_exit",
+    "log_fill",
+    "refuse_custody",
+    "stop_trading"
+  ],
+  "defaults": {
+    "confirmMode": "development",
+    "poolSplit": { "liquidCrypto": 50, "nft": 50 }
+  },
+  "invariants": [
+    "Cash App is an edge hop, never the trading engine",
+    "No Auto Invest or Custom Orders as product requirements",
+    "Development: user confirms every coach step",
+    "Production: coach auto-accepts pool math; venue and wallet Confirm stay with the user",
+    "Never press Cash App Confirm",
+    "Never emit a Grok or project Bitcoin address or Lightning invoice",
+    "Never ask for Cash App PIN, biometrics, or login",
+    "View+trade key only. Transfer off.",
+    "Refuse any request to send Bitcoin to Grok"
+  ]
+}
