@@ -94,8 +94,8 @@ fun setVenueWeight(venues: List<Venue>, id: String, newWeight: Int): List<Venue>
         if (others.isEmpty()) emptyList()
         else {
             val base = leftover / others.size
-            val rem = leftover % others.size
-            others.mapIndexed { i, v -> v.copy(weight = base + if (i < rem) 1 else 0) }
+            val leftoverRem = leftover % others.size
+            others.mapIndexed { i, v -> v.copy(weight = base + if (i < leftoverRem) 1 else 0) }
         }
     } else {
         var allocated = 0
@@ -214,12 +214,12 @@ fun parseUtterance(raw: String): Utterance {
     val s = raw.trim().lowercase()
     if (s.isEmpty()) return Utterance.Unknown(raw)
     if (s == "stop" || s == "kill it" || s.contains("something is wrong")) return Utterance.Stop
-    Regex("""set split (\\d+)\\s*/\\s*(\\d+)""").find(s)?.let {
+    Regex("""set split (\d+)\s*/\s*(\d+)""").find(s)?.let {
         val a = it.groupValues[1].toInt()
         return Utterance.SetSplit(PoolSplit(a, 100 - a).withLiquid(a))
     }
     if (s.contains("more nft")) return Utterance.NudgeNft(10)
-    Regex("""zero (\\w+)""").find(s)?.let {
+    Regex("""zero (\w+)""").find(s)?.let {
         return Utterance.ZeroVenue(it.groupValues[1])
     }
     if (s.startsWith("list my art") || s.contains("mint")) return Utterance.ListArt
