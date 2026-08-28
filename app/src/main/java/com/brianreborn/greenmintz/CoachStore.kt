@@ -4,11 +4,19 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import mintz.broker.CoinbaseClient
 import mintz.domain.ActionKind
+import mintz.domain.Balance
+import mintz.domain.BookPlan
 import mintz.domain.ConfirmMode
 import mintz.domain.HopPath
 import mintz.domain.PoolSplit
@@ -26,7 +34,7 @@ import mintz.domain.resolveVenueToken
 import mintz.domain.setVenueWeight
 import mintz.domain.usdToSats
 
-enum class Tab { POOLS, VENUES, RETRIEVE, ART }
+enum class Tab { POOLS, VENUES, RETRIEVE, ART, BOOK }
 
 enum class HopPhase { IDLE, CHECKLIST, WAITING, LANDED }
 
@@ -66,6 +74,12 @@ data class CoachUiState(
     val lastLine: String = "Ramp pile is too small for on-chain. Use Lightning or leave it. Sliders are armed.",
     val pending: Pending? = null,
     val speak: String = "",
+    val bookArmed: Boolean = false,
+    val convertArmed: Boolean = false,
+    val keyPresent: Boolean = false,
+    val keyLabel: String = "no key on this phone",
+    val balances: List<Balance> = emptyList(),
+    val planLine: String = "",
 ) {
     val sats: Long get() = usdToSats(pileUsd, btcUsd)
     val hopPath: HopPath get() = hopPolicy(sats, lightningOk, usdcOk)
@@ -75,6 +89,15 @@ data class CoachUiState(
 object CoachStore {
     private val _state = MutableStateFlow(CoachUiState())
     val state: StateFlow<CoachUiState> = _state.asStateFlow()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var app: Context? = null
+    private var gate: CompletableDeferred<Boolean>? = null
+
+    fun attach(ctx: Context) {
+        app = ctx.applicationContext
+        KeyVault.init(ctx)
+        _state.update { it.copy(keyPresent = KeyVault.present(), keyLabel = KeyVault.label()) }
+    }
 
     fun setTab(tab: Tab) = _state.update { it.copy(tab = tab) }
     fun setSpeak(speak: String) = _state.update { it.copy(speak = speak) }
@@ -105,12 +128,18 @@ object CoachStore {
         )
     }
 
-    fun dismissPending() = _state.update { it.copy(pending = null) }
+    fun dismissPending() {
+        _state.update { it.copy(pending = null) }
+        gate?.complete(false)
+        gate = null
+    }
 
     fun confirmPending() {
         val p = _state.value.pending ?: return
         p.apply()
         _state.update { it.copy(pending = null) }
+        gate?.complete(true)
+        gate = null
     }
 
     fun request(pending: Pending) {
@@ -121,13 +150,36 @@ object CoachStore {
         _state.update { it.copy(pending = pending) }
     }
 
-    fun kill() = _state.update {
-        it.copy(
-            stopped = true,
-            hopPhase = HopPhase.IDLE,
-            lastLine = "Stopped. Cancel open Coinbase orders. Revoke the view+trade key. Nothing keeps buying.",
-            pending = null,
-        )
+    suspend fun requestAndAwait(pending: Pending): Boolean {
+        if (!needsUserConfirm(_state.value.confirmMode, pending.kind)) {
+            pending.apply()
+            return true
+        }
+        val d = CompletableDeferred<Boolean>()
+        gate = d
+        _state.update { it.copy(pending = pending, tab = Tab.BOOK) }
+        return d.await()
+    }
+
+    fun kill() {
+        gate?.complete(false)
+        gate = null
+        _state.update {
+            it.copy(
+                stopped = true,
+                bookArmed = false,
+                convertArmed = false,
+                hopPhase = HopPhase.IDLE,
+                lastLine = "Stopped. Cancel open Coinbase orders. Revoke the view+trade key. Nothing keeps buying.",
+                pending = null,
+            )
+        }
+        app?.let { WatchService.stop(it) }
+        scope.launch {
+            val key = KeyVault.load() ?: return@launch
+            val n = runCatching { CoinbaseClient(key.name, key.privateKeyPem).cancelAllOpen() }.getOrDefault(0)
+            bookNote("Stopped. Cancelled $n open orders.")
+        }
     }
 
     fun proposeSplit(liquid: Int) {
@@ -227,6 +279,82 @@ object CoachStore {
         )
     }
 
+    fun saveKey(raw: String) {
+        try {
+            KeyVault.savePaste(raw)
+            _state.update {
+                it.copy(
+                    keyPresent = true,
+                    keyLabel = KeyVault.label(),
+                    lastLine = "Key saved on this phone only. Transfer stays off.",
+                    tab = Tab.BOOK,
+                )
+            }
+        } catch (e: Exception) {
+            bookError(e.message ?: "Could not save key")
+        }
+    }
+
+    fun clearKey() {
+        KeyVault.clear()
+        disarmBook()
+        _state.update { it.copy(keyPresent = false, keyLabel = KeyVault.label(), lastLine = "Key removed from this phone.") }
+    }
+
+    fun testKey() {
+        scope.launch {
+            val key = KeyVault.load() ?: return@launch bookError("No key")
+            runCatching {
+                val bals = CoinbaseClient(key.name, key.privateKeyPem).listBalances()
+                setBalances(bals)
+                bookNote("View works. ${bals.size} positive balances. Trade will fire when armed.")
+            }.onFailure { bookError(it.message ?: "key test failed") }
+        }
+    }
+
+    fun armBook() {
+        if (_state.value.stopped) return
+        if (!KeyVault.present()) {
+            bookError("Paste a View+Trade CDP key first. Transfer off.")
+            return
+        }
+        request(
+            Pending(
+                kind = ActionKind.BOOK_ORDER,
+                title = "Arm Coinbase book",
+                body = "While this app runs it will place *-USDC orders on YOUR Coinbase. Watch them on another console. Transfer is off. STOP cancels opens.",
+                apply = {
+                    _state.update {
+                        it.copy(bookArmed = true, stopped = false, tab = Tab.BOOK, lastLine = "Watching Coinbase *-USDC")
+                    }
+                    app?.let { WatchService.start(it) }
+                },
+            ),
+        )
+    }
+
+    fun disarmBook() {
+        _state.update { it.copy(bookArmed = false, convertArmed = false, lastLine = "Book disarmed.") }
+        app?.let { WatchService.stop(it) }
+    }
+
+    fun armConvert() {
+        _state.update { it.copy(convertArmed = true, lastLine = "Next tick will sell BTC to USDC.") }
+        if (_state.value.bookArmed) app?.let { WatchService.start(it) }
+    }
+
+    fun clearConvert() = _state.update { it.copy(convertArmed = false) }
+
+    fun setBalances(balances: List<Balance>) = _state.update { it.copy(balances = balances) }
+
+    fun setPlanNotes(plan: BookPlan) = _state.update {
+        it.copy(planLine = plan.notes.joinToString(" "))
+    }
+
+    fun bookNote(msg: String) = _state.update { it.copy(lastLine = msg, planLine = msg) }
+
+    fun bookError(msg: String) = _state.update { it.copy(lastLine = msg, planLine = msg) }
+
     fun runUtterance(raw: String) {
         val u = parseUtterance(raw)
         if (u is Utterance.Stop) {
@@ -246,13 +374,16 @@ object CoachStore {
                 else _state.update { it.copy(lastLine = "No venue matches “${u.token}”.") }
             }
             is Utterance.ListArt -> _state.update { it.copy(tab = Tab.ART) }
+            is Utterance.ArmBook -> armBook()
+            is Utterance.DisarmBook -> disarmBook()
+            is Utterance.ConvertBtc -> armConvert()
             is Utterance.Holdings -> _state.update {
                 it.copy(
                     lastLine = "Liquid ${it.split.liquidCrypto}% · NFT ${it.split.nft}%. Cash App pile ~$${it.pileUsd}.",
                 )
             }
             is Utterance.Unknown -> _state.update {
-                it.copy(lastLine = "Try: set split 70/30 · more NFTs · zero Blur · stop · what do we hold")
+                it.copy(lastLine = "Try: set split 70/30 · arm book · convert btc · zero Blur · stop")
             }
             else -> Unit
         }

@@ -25,8 +25,8 @@ jobs:
         with:
           gradle-version: "8.10.2"
 
-      - name: Domain tests
-        run: gradle :domain:test --no-daemon
+      - name: Domain + broker tests
+        run: gradle :domain:test :broker:test --no-daemon
 
       - name: Assemble debug APK
         run: gradle :app:assembleDebug --no-daemon
@@ -44,10 +44,12 @@ jobs:
           body: |
             Sideload this debug APK on the spare unrooted phone.
 
-            - KernelSU off
-            - You Confirm hops. Coach never presses Cash App Confirm
-            - Share an image from the gallery into green-mintz (Art inbox)
-            - Lightning first. Do not paste invoices here
+            Alpha 1.1 — Coinbase *-USDC book while the app is running.
+            - Paste a CDP View+Trade key on the Book tab (Transfer off)
+            - Arm watching. Development confirms each order; production auto-places
+            - STOP cancels open Coinbase orders
+            - You Confirm Cash App hops. Coach never presses Cash App Confirm
+            - Key stays on the phone. No Grok custody
 
             Direct download: `app-debug.apk` on this release.
           files: dist/app-debug.apk

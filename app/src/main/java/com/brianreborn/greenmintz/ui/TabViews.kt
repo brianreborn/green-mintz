@@ -32,6 +32,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,6 +53,7 @@ import com.brianreborn.greenmintz.HopPhase
 import mintz.domain.ConfirmMode
 import mintz.domain.HopPath
 import mintz.domain.ShareKind
+import mintz.domain.bookKeyChecklist
 import mintz.domain.commissionChecklist
 import mintz.domain.lightningChecklist
 import mintz.domain.onchainChecklist
@@ -460,4 +462,80 @@ private fun SharePreview(uri: Uri?, name: String) {
             contentAlignment = Alignment.Center,
         ) { Text(name, color = Gold, fontSize = 14.sp) }
     }
+}
+
+@Composable
+internal fun BookView(s: CoachUiState) {
+    var paste by remember { mutableStateOf("") }
+    Text("Coinbase book", color = Cream, fontSize = 24.sp, fontFamily = FontFamily.Serif)
+    Text("View+trade key only. Transfer off. Key stays on this phone.", color = Muted, fontSize = 14.sp)
+    Text(s.keyLabel, color = Gold, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+    if (!s.keyPresent) {
+        bookKeyChecklist().forEachIndexed { i, line ->
+            Text("${i + 1}. $line", color = Cream, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
+        }
+        OutlinedTextField(
+            value = paste,
+            onValueChange = { paste = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .height(120.dp),
+            placeholder = { Text("Paste CDP JSON here", color = Muted) },
+            colors = fieldColors(),
+        )
+        Button(
+            onClick = { CoachStore.saveKey(paste); paste = "" },
+            enabled = paste.isNotBlank() && !s.stopped,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .height(48.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Teal),
+        ) { Text("Save key on this phone") }
+    } else {
+        Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { CoachStore.testKey() }, modifier = Modifier.weight(1f).height(48.dp)) {
+                Text("Test view", color = Cream)
+            }
+            OutlinedButton(onClick = { CoachStore.clearKey() }, modifier = Modifier.weight(1f).height(48.dp)) {
+                Text("Remove key", color = Cream)
+            }
+        }
+        Button(
+            onClick = { if (s.bookArmed) CoachStore.disarmBook() else CoachStore.armBook() },
+            enabled = !s.stopped || s.bookArmed,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .height(48.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = if (s.bookArmed) Stop else Teal),
+        ) { Text(if (s.bookArmed) "Disarm book" else "Arm watching") }
+        OutlinedButton(
+            onClick = { CoachStore.armConvert() },
+            enabled = s.bookArmed && !s.stopped,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .height(48.dp),
+        ) { Text(if (s.convertArmed) "Convert BTC armed" else "Convert hopped BTC → USDC", color = Cream) }
+    }
+    if (s.balances.isNotEmpty()) {
+        Text("Balances", color = Cream, fontSize = 18.sp, fontFamily = FontFamily.Serif, modifier = Modifier.padding(top = 20.dp))
+        s.balances.forEach { b ->
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(b.currency, color = Cream, fontSize = 14.sp)
+                Text("%.6f".format(b.available).trimEnd('0').trimEnd('.'), color = Gold, fontSize = 14.sp)
+            }
+        }
+    }
+    if (s.planLine.isNotBlank()) {
+        Text(s.planLine, color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp))
+    }
+    Text(
+        "Development confirms each order. Production auto-places *-USDC. STOP cancels opens. Watch fills on coinbase.com.",
+        color = Muted,
+        fontSize = 12.sp,
+        modifier = Modifier.padding(top = 16.dp),
+    )
 }

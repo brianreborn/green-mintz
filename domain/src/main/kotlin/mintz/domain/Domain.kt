@@ -10,6 +10,7 @@ const val DUMP_VS_OPEN = 0.004
 const val BOUNCE_OFF_DIP = 0.0015
 const val REBALANCE_BAND_PCT = 10
 const val SATS_PER_BTC = 100_000_000L
+const val MIN_QUOTE_USDC = 1.0
 
 enum class ConfirmMode { DEVELOPMENT, PRODUCTION }
 
@@ -19,7 +20,11 @@ enum class ExitAction { WAIT, SELL_NOW, SELL_AT_EXPIRY }
 
 enum class ShareKind { ART, SCREENSHOT, NOTE }
 
-enum class ActionKind { POOL_MATH, VENUE_WALLET, HOP, MINT, STOP }
+enum class ActionKind { POOL_MATH, VENUE_WALLET, HOP, MINT, STOP, BOOK_ORDER }
+
+enum class Side { BUY, SELL }
+
+enum class BookAction { CONVERT_BTC, REBALANCE, EXIT }
 
 data class PoolSplit(val liquidCrypto: Int, val nft: Int) {
     fun sumsToHundred(): Boolean = liquidCrypto + nft == 100 && liquidCrypto in 0..100 && nft in 0..100
@@ -65,6 +70,7 @@ data class CoachState(
     val nftVenues: List<Venue> = defaultNftVenues(),
     val coinbaseWeight: Int = 100,
     val mineArmed: Boolean = false,
+    val bookArmed: Boolean = false,
 )
 
 fun defaultSplit(): PoolSplit = PoolSplit(50, 50)
@@ -94,8 +100,8 @@ fun setVenueWeight(venues: List<Venue>, id: String, newWeight: Int): List<Venue>
         if (others.isEmpty()) emptyList()
         else {
             val base = leftover / others.size
-            val leftoverRem = leftover % others.size
-            others.mapIndexed { i, v -> v.copy(weight = base + if (i < leftoverRem) 1 else 0) }
+            val rem = leftover % others.size
+            others.mapIndexed { i, v -> v.copy(weight = base + if (i < rem) 1 else 0) }
         }
     } else {
         var allocated = 0
@@ -205,15 +211,20 @@ fun refuseCustody(@Suppress("UNUSED_PARAMETER") request: String): CustodyRefusal
 fun needsUserConfirm(mode: ConfirmMode, kind: ActionKind): Boolean {
     if (kind == ActionKind.STOP) return false
     if (mode == ConfirmMode.PRODUCTION && kind == ActionKind.POOL_MATH) return false
+    if (mode == ConfirmMode.PRODUCTION && kind == ActionKind.BOOK_ORDER) return false
     return true
 }
 
-fun stop(state: CoachState): CoachState = state.copy(stopped = true, mineArmed = false)
+fun stop(state: CoachState): CoachState =
+    state.copy(stopped = true, mineArmed = false, bookArmed = false)
 
 fun parseUtterance(raw: String): Utterance {
     val s = raw.trim().lowercase()
     if (s.isEmpty()) return Utterance.Unknown(raw)
     if (s == "stop" || s == "kill it" || s.contains("something is wrong")) return Utterance.Stop
+    if (s == "arm book" || s == "start watching" || s == "arm") return Utterance.ArmBook
+    if (s == "disarm" || s == "disarm book") return Utterance.DisarmBook
+    if (s == "convert" || s == "convert btc") return Utterance.ConvertBtc
     Regex("""set split (\d+)\s*/\s*(\d+)""").find(s)?.let {
         val a = it.groupValues[1].toInt()
         return Utterance.SetSplit(PoolSplit(a, 100 - a).withLiquid(a))
@@ -229,6 +240,9 @@ fun parseUtterance(raw: String): Utterance {
 
 sealed class Utterance {
     data object Stop : Utterance()
+    data object ArmBook : Utterance()
+    data object DisarmBook : Utterance()
+    data object ConvertBtc : Utterance()
     data class SetSplit(val split: PoolSplit) : Utterance()
     data class NudgeNft(val delta: Int) : Utterance()
     data class ZeroVenue(val token: String) : Utterance()
@@ -281,4 +295,11 @@ fun commissionChecklist(): List<String> = listOf(
     "Post and deliver there. We do not scrape or auto-post.",
     "Keep private, commission, mint, or mix — you choose.",
     "Do not mint a client-exclusive piece without the rights flag.",
+)
+
+fun bookKeyChecklist(): List<String> = listOf(
+    "On YOUR Coinbase: Developer / CDP API keys.",
+    "Create a key with View and Trade. Leave Transfer off.",
+    "Download the JSON once. Paste it only into this phone app.",
+    "Grok never stores the secret. Transfer endpoints are not compiled in.",
 )

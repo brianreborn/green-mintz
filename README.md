@@ -9,21 +9,14 @@ Spare unrooted phone. KernelSU off. You Confirm hops.
 
 **https://github.com/brianreborn/green-mintz/releases/latest/download/app-debug.apk**
 
-If that 404s, the rolling tag is [apk-debug](https://github.com/brianreborn/green-mintz/releases/tag/apk-debug).
+Alpha 1.1: Book tab runs view+trade on YOUR Coinbase while the app is running. Transfer off. Key stays on the phone.
 
 See `app/ANDROID.md`.
 
 ## Layout (japanglify split)
 
-- `domain/` — pure JVM. Pools, hop policy, decent-exit, share classify, stop. `./gradlew :domain:test`
-- `app/` — Android shell. Share target, Retrieve, Art, sliders. `./scripts/bootstrap-android-sdk.sh` then `./gradlew :app:assembleDebug`
-
-## Start here
-
-- `HANDOFF.md` — what a coder may and must not do
-- `interface-schemas.json` v1.5.0 — machine contract
-- `REQUIREMENTS.md` — SRS export
-- `design/DESIGN.md` — mock-ups
-- `TEST.md` — domain JVM tests vs spare phone
+- `domain/` — pure JVM. Pools, hop policy, decent-exit, book plan, share classify, stop. `./gradlew :domain:test`
+- `broker/` — Coinbase REST. No withdraw/transfer paths. `./gradlew :broker:test`
+- `app/` — Android shell. Share target, Retrieve, Art, Book. `./scripts/bootstrap-android-sdk.sh` then `./gradlew :app:assembleDebug`
 
 Private: https://github.com/brianreborn/green-mintz

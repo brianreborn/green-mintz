@@ -1,6 +1,10 @@
 package com.brianreborn.greenmintz.ui
 
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,6 +30,7 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -33,26 +39,46 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.brianreborn.greenmintz.ArtIntent
 import com.brianreborn.greenmintz.CoachStore
 import com.brianreborn.greenmintz.CoachUiState
+import com.brianreborn.greenmintz.HopPhase
 import com.brianreborn.greenmintz.Tab
 import mintz.domain.ConfirmMode
+import mintz.domain.HopPath
+import mintz.domain.ShareKind
+import mintz.domain.commissionChecklist
+import mintz.domain.lightningChecklist
+import mintz.domain.onchainChecklist
 import mintz.domain.refuseCustody
+import mintz.domain.returnChecklist
+import mintz.domain.usdcChecklist
 
 @Composable
 fun MintzScreen() {
@@ -97,6 +123,7 @@ fun MintzScreen() {
                     Tab.VENUES -> VenuesView(s)
                     Tab.RETRIEVE -> RetrieveView(s)
                     Tab.ART -> ArtView(s)
+                    Tab.BOOK -> BookView(s)
                 }
                 Text(
                     custody.message,
@@ -182,6 +209,7 @@ private fun NavBar(tab: Tab) {
         NavBtn("Venues", Icons.Outlined.Map, tab == Tab.VENUES) { CoachStore.setTab(Tab.VENUES) }
         NavBtn("Retrieve", Icons.Outlined.Download, tab == Tab.RETRIEVE) { CoachStore.setTab(Tab.RETRIEVE) }
         NavBtn("Art", Icons.Outlined.Image, tab == Tab.ART) { CoachStore.setTab(Tab.ART) }
+        NavBtn("Book", Icons.Outlined.ShowChart, tab == Tab.BOOK) { CoachStore.setTab(Tab.BOOK) }
     }
 }
 

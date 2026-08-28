@@ -16,9 +16,8 @@ dependencyResolutionManagement {
 
 rootProject.name = "green-mintz"
 include(":domain")
+include(":broker")
 
-// Android :app when SDK is present (japanglify path). Domain tests stay SDK-free:
-// ./gradlew :domain:test works without local.properties. Force with -PincludeApp=true.
 val prop = providers.gradleProperty("includeApp").orNull
 val env = providers.environmentVariable("INCLUDE_ANDROID_APP").orNull
 val sdkEnv = !providers.environmentVariable("ANDROID_SDK_ROOT").orNull.isNullOrBlank() ||
