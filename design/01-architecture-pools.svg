@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700">
+<rect width="1200" height="700" fill="#0B1220"/>
+<text x="600" y="48" fill="#F4F1EA" font-size="26" text-anchor="middle" font-family="Georgia,serif">green-mintz — you steer pools, APIs do tickets</text>
+<rect x="40" y="100" width="140" height="220" rx="16" fill="none" stroke="#F4F1EA"/>
+<text x="110" y="220" fill="#F4F1EA" text-anchor="middle">YOU</text>
+<rect x="240" y="100" width="280" height="320" rx="12" fill="#121A2A" stroke="#C4A574"/>
+<text x="380" y="130" fill="#C4A574" text-anchor="middle">Grok interface</text>
+<text x="260" y="170" fill="#F4F1EA">Chat</text>
+<text x="260" y="210" fill="#F4F1EA">Split 50 crypto | 50 NFT</text>
+<text x="260" y="250" fill="#F4F1EA">Venue weights</text>
+<text x="260" y="290" fill="#F4F1EA">Art / commission</text>
+<rect x="260" y="320" width="240" height="40" rx="8" fill="#9F1239"/>
+<text x="380" y="346" fill="#F4F1EA" text-anchor="middle">STOP</text>
+<rect x="580" y="100" width="560" height="420" rx="12" fill="none" stroke="#3A465C" stroke-dasharray="6 6"/>
+<rect x="610" y="130" width="500" height="70" rx="8" fill="#1F6F66"/>
+<text x="860" y="172" fill="#F4F1EA" text-anchor="middle">Coinbase Advanced Trade *-USDC</text>
+<rect x="610" y="220" width="500" height="260" rx="8" fill="#C4A574"/>
+<text x="630" y="255" fill="#0B1220">Blur Tensor Chadbot Magic Eden</text>
+<text x="630" y="290" fill="#0B1220">OpenSea/Reservoir AgentVault Bonsai Botmesh</text>
+<text x="630" y="340" fill="#0B1220">VGen / Fantia = commission tap-list, not fills</text>
+<text x="80" y="640" fill="#F4F1EA">Cash App ramp — Lightning first, USDC second, on-chain last</text>
+<text x="80" y="670" fill="#F4F1EA">User wallet signs mints. Seed under $10 does not on-chain hop.</text>
+</svg>
