@@ -81,7 +81,15 @@ class BookTest {
         assertFalse(isForbiddenBrokerPath("/api/v3/brokerage/orders"))
         assertFalse(isForbiddenBrokerPath("/api/v3/brokerage/accounts"))
         assertFalse(isForbiddenBrokerPath("/api/v3/brokerage/best_bid_ask"))
-        assertTrue(allowedBrokerPath("/api/v3/brokerage/orders/batch_cancel"))
+        assertTrue(isForbiddenBrokerPath("/api/v3/brokerage/convert"))
+        assertTrue(isForbiddenBrokerPath("https://evil.example/api/v3/brokerage/orders"))
+        assertTrue(isAllowedBrokerPath("/api/v3/brokerage/orders"))
+        assertTrue(isAllowedBrokerPath("/api/v3/brokerage/orders/batch_cancel"))
+        assertFalse(isAllowedBrokerPath("/api/v3/brokerage/orders/do-withdraw"))
+        assertFalse(isAllowedBrokerPath("/api/v3/brokerage/convert"))
+        assertTrue(isAllowedProduct("BTC-USDC"))
+        assertFalse(isAllowedProduct("BTC-USD"))
+        assertFalse(isAllowedProduct("BTC-USDT"))
     }
 
     @Test

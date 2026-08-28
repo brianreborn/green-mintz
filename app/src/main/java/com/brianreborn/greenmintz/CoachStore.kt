@@ -401,15 +401,9 @@ object CoachStore {
                     intent.getParcelableExtra(Intent.EXTRA_STREAM)
                 }
                 if (stream != null) {
-                    runCatching {
-                        context.contentResolver.takePersistableUriPermission(
-                            stream,
-                            Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                        )
-                    }
                     val mime = intent.type
                     val name = stream.lastPathSegment ?: "shared"
-                    val kind = classifyShare(mime, name, null)
+                    val kind = classifyShare(mime, name, intent.getStringExtra(Intent.EXTRA_TEXT))
                     setShare(ShareItem(kind = kind, name = name, uri = stream))
                     return
                 }

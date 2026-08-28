@@ -56,19 +56,39 @@ fun defaultLiquidBook(): List<LiquidPair> = listOf(
 
 fun isForbiddenBrokerPath(path: String): Boolean {
     val p = path.lowercase()
+    if (p.contains("://") || p.contains("..") || p.contains("\\")) return true
     val banned = listOf(
         "withdraw",
         "transfer",
         "/addresses",
         "payment-method",
-        "convert/trade",
+        "convert",
         "portfolios/move",
-        "intx/transfers",
+        "intx/",
+        "send",
+        "deposit",
     )
     return banned.any { p.contains(it) }
 }
 
-fun allowedBrokerPath(path: String): Boolean = !isForbiddenBrokerPath(path)
+fun isAllowedBrokerPath(path: String): Boolean {
+    if (isForbiddenBrokerPath(path)) return false
+    val p = path.substringBefore("?").lowercase().trim()
+    if (!p.startsWith("/api/v3/brokerage/")) return false
+    return p == "/api/v3/brokerage/accounts" ||
+        p == "/api/v3/brokerage/best_bid_ask" ||
+        p == "/api/v3/brokerage/orders/historical/batch" ||
+        p == "/api/v3/brokerage/orders" ||
+        p == "/api/v3/brokerage/orders/batch_cancel"
+}
+
+fun isAllowedProduct(productId: String): Boolean {
+    val id = productId.uppercase()
+    if (!id.endsWith("-USDC")) return false
+    return defaultLiquidBook().any { it.productId.equals(id, ignoreCase = true) }
+}
+
+fun allowedBrokerPath(path: String): Boolean = isAllowedBrokerPath(path)
 
 fun usdcValue(currency: String, amount: Double, marks: List<PriceMark>): Double {
     if (amount <= 0.0) return 0.0

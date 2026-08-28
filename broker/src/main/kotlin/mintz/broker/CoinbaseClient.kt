@@ -4,6 +4,8 @@ import mintz.domain.Balance
 import mintz.domain.OrderIntent
 import mintz.domain.PriceMark
 import mintz.domain.Side
+import mintz.domain.isAllowedBrokerPath
+import mintz.domain.isAllowedProduct
 import mintz.domain.isForbiddenBrokerPath
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -86,6 +88,7 @@ class CoinbaseClient(
         val ioc = JSONObject()
         intent.quoteSize?.let { ioc.put("quote_size", trimQty(it)) }
         intent.baseSize?.let { ioc.put("base_size", trimQty(it)) }
+        require(mintz.domain.isAllowedProduct(intent.productId)) { "product not on the *-USDC book: ${intent.productId}" }
         val body = JSONObject()
             .put("client_order_id", UUID.randomUUID().toString())
             .put("product_id", intent.productId)
@@ -131,9 +134,10 @@ class OkHttpRawHttp(
 ) : RawHttp {
     override fun execute(method: String, path: String, jsonBody: String?): String {
         val pathOnly = path.substringBefore("?")
-        if (isForbiddenBrokerPath(path) || isForbiddenBrokerPath(pathOnly)) {
+        if (!isAllowedBrokerPath(path) || !isAllowedBrokerPath(pathOnly) || isForbiddenBrokerPath(path)) {
             throw TransferForbiddenException(path)
         }
+        if (!path.startsWith("/")) throw TransferForbiddenException(path)
         val jwt = jwtFor(method, pathOnly)
         val url = "https://api.coinbase.com$path"
         val b = Request.Builder()
