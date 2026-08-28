@@ -3,7 +3,6 @@ package com.brianreborn.greenmintz
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import mintz.broker.CoinbaseClient
 import mintz.domain.ActionKind
