@@ -1,0 +1,17 @@
+.gradle/
+build/
+domain/build/
+app/build/
+sdk/
+local.properties
+keystore.properties
+*.iml
+.idea/
+node_modules/
+dist/
+.output/
+.tanstack/
+.nitro/
+*.apk
+*.aab
+.DS_Store

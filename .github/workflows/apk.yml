@@ -1,0 +1,55 @@
+name: APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Domain tests
+        run: gradle :domain:test --no-daemon
+
+      - name: Assemble debug APK
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Stage APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/app-debug.apk
+          ls -lh dist/app-debug.apk
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-debug
+          name: green-mintz APK
+          body: |
+            Sideload this debug APK on the spare unrooted phone.
+
+            - KernelSU off
+            - You Confirm hops. Coach never presses Cash App Confirm
+            - Share an image from the gallery into green-mintz (Art inbox)
+            - Lightning first. Do not paste invoices here
+
+            Direct download: `app-debug.apk` on this release.
+          files: dist/app-debug.apk
+          fail_on_unmatched_files: true
+          make_latest: true
