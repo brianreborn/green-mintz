@@ -196,6 +196,8 @@ fun parseCdpPaste(raw: String): CdpKey? {
         return re.find(t)?.groupValues?.get(1)
     }
     val pem = grab("privateKey") ?: grab("private_key")
+        ?: Regex("-----BEGIN [^-]+-----.*?-----END [^-]+-----", setOf(RegexOption.DOT_MATCHES_ALL))
+            .find(t)?.value
     val name = grab("name") ?: grab("id")
     if (!pem.isNullOrBlank() && !name.isNullOrBlank()) {
         val normalized = unescape(pem)

@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import mintz.broker.CoinbaseClient
 import mintz.domain.ActionKind
 import mintz.domain.Balance
@@ -158,7 +158,13 @@ object CoachStore {
         val d = CompletableDeferred<Boolean>()
         gate = d
         _state.update { it.copy(pending = pending, tab = Tab.BOOK) }
-        return d.await()
+        val ok = withTimeoutOrNull(90_000) { d.await() }
+        if (ok == null) {
+            _state.update { it.copy(pending = null, lastLine = "Confirm timed out. Book still armed.") }
+            gate = null
+            return false
+        }
+        return ok
     }
 
     fun kill() {
@@ -390,36 +396,28 @@ object CoachStore {
         _state.update { it.copy(speak = "") }
     }
 
+    fun ingestPicked(context: Context, uri: Uri) {
+        ingestUri(context, uri, context.contentResolver.getType(uri), null)
+    }
+
     fun ingestIntent(context: Context, intent: Intent?) {
         if (intent == null) return
-        when (intent.action) {
-            Intent.ACTION_SEND -> {
-                val stream: Uri? = if (Build.VERSION.SDK_INT >= 33) {
-                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
-                }
-                if (stream != null) {
-                    val mime = intent.type
-                    val name = stream.lastPathSegment ?: "shared"
-                    val kind = classifyShare(mime, name, intent.getStringExtra(Intent.EXTRA_TEXT))
-                    setShare(ShareItem(kind = kind, name = name, uri = stream))
-                    return
-                }
-                val text = intent.getStringExtra(Intent.EXTRA_TEXT)
-                if (!text.isNullOrBlank()) {
-                    val kind = classifyShare(intent.type, null, text)
-                    setShare(ShareItem(kind = kind, name = text.take(48)))
-                }
-            }
-            Intent.ACTION_PROCESS_TEXT -> {
-                val text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
-                if (!text.isNullOrBlank()) {
-                    val kind = classifyShare("text/plain", null, text)
-                    setShare(ShareItem(kind = kind, name = text.take(48)))
-                }
-            }
+        val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+            ?: intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
+        val first = Inbox.streamUris(intent).firstOrNull()
+        if (first != null) {
+            ingestUri(context, first, context.contentResolver.getType(first) ?: intent.type, text)
+            return
         }
+        if (!text.isNullOrBlank()) {
+            setShare(ShareItem(kind = classifyShare(intent.type, null, text), name = text.take(80)))
+        }
+    }
+
+    private fun ingestUri(context: Context, uri: Uri, mime: String?, text: String?) {
+        val copied = Inbox.copy(context, uri)
+        val name = copied?.first ?: uri.lastPathSegment ?: "shared"
+        val kind = classifyShare(mime, name, text)
+        setShare(ShareItem(kind = kind, name = name, uri = copied?.second ?: uri))
     }
 }

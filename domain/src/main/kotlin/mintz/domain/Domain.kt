@@ -187,6 +187,11 @@ fun classifyShare(mime: String? = null, filename: String? = null, text: String? 
             blob.contains("cashapp") ||
             blob.contains("screen shot")
     if (looksScreenshot) return ShareKind.SCREENSHOT
+    val looksCommission =
+        blob.contains("vgen.co") ||
+            blob.contains("fantia.jp") ||
+            blob.contains("fantia.com")
+    if (looksCommission) return ShareKind.ART
     val isImage = (mime?.startsWith("image/") == true) ||
         (filename?.matches(Regex(".*\\.(png|jpe?g|webp|gif|heic)$", RegexOption.IGNORE_CASE)) == true)
     if (isImage) return ShareKind.ART

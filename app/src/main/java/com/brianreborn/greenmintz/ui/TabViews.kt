@@ -1,7 +1,10 @@
 package com.brianreborn.greenmintz.ui
 
+import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -296,10 +299,14 @@ internal fun RetrieveView(s: CoachUiState) {
 
 @Composable
 internal fun ArtView(s: CoachUiState) {
+    val ctx = LocalContext.current
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) CoachStore.ingestPicked(ctx, uri)
+    }
     val share = s.share
     val showInbox = share != null && s.artIntent == ArtIntent.NONE && share.kind != ShareKind.SCREENSHOT
     Text(if (share != null) "Shared with green-mintz" else "Art studio", color = Cream, fontSize = 24.sp, fontFamily = FontFamily.Serif)
-    Text("Share an image. Mint to YOUR wallet, or offer as a commission. No Grok custody.", color = Muted, fontSize = 14.sp)
+    Text("Share an image from Photos, VGen, or Fantia. Or tap the box. No Grok custody.", color = Muted, fontSize = 14.sp)
     Box(
         Modifier
             .fillMaxWidth()
@@ -307,10 +314,21 @@ internal fun ArtView(s: CoachUiState) {
             .height(112.dp)
             .border(1.dp, Cream.copy(alpha = 0.18f), RoundedCornerShape(12.dp))
             .clip(RoundedCornerShape(12.dp))
-            .background(Navy2),
+            .background(Navy2)
+            .clickable { pick.launch("image/*") },
         contentAlignment = Alignment.Center,
     ) {
-        Text("Share into green-mintz — list as NFT", color = Muted, fontSize = 14.sp)
+        Text("Tap to pick an image, or Share into green-mintz", color = Muted, fontSize = 14.sp)
+    }
+    Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://vgen.co/"))) },
+            modifier = Modifier.weight(1f).height(48.dp),
+        ) { Text("Open VGen", color = Cream) }
+        OutlinedButton(
+            onClick = { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://fantia.jp/"))) },
+            modifier = Modifier.weight(1f).height(48.dp),
+        ) { Text("Open Fantia", color = Cream) }
     }
     if (share != null) {
         SharePreview(share.uri, share.name)
@@ -436,6 +454,7 @@ private fun SharePreview(uri: Uri?, name: String) {
     val context = LocalContext.current
     val bmp = remember(uri) {
         if (uri == null) null
+        else if (uri.scheme == "file") BitmapFactory.decodeFile(uri.path)
         else runCatching {
             context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
         }.getOrNull()

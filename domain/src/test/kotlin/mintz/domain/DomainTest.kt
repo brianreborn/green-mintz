@@ -96,6 +96,8 @@ class DomainTest {
         assertEquals(ShareKind.SCREENSHOT, classifyShare(mime = "image/png", filename = "Cash App screenshot.png"))
         assertEquals(ShareKind.SCREENSHOT, classifyShare(text = "cash app bitcoin tab"))
         assertEquals(ShareKind.NOTE, classifyShare(text = "hello"))
+        assertEquals(ShareKind.ART, classifyShare(text = "https://vgen.co/job/123"))
+        assertEquals(ShareKind.ART, classifyShare(text = "https://fantia.jp/posts/1"))
     }
 
     @Test
