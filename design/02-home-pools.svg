@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" width="390" height="844">
+<rect width="390" height="844" rx="28" fill="#0B1220"/>
+<text x="24" y="48" fill="#F4F1EA" font-family="Georgia,serif" font-size="22">green-mintz</text>
+<rect x="270" y="28" width="96" height="32" rx="8" fill="#9F1239"/>
+<text x="318" y="50" fill="#F4F1EA" font-size="12" text-anchor="middle">STOP</text>
+<text x="24" y="88" fill="#F4F1EA" font-family="Georgia,serif" font-size="20">Total · sliders armed</text>
+<rect x="24" y="110" width="342" height="80" rx="12" fill="#3A2A12"/>
+<text x="40" y="145" fill="#F4F1EA" font-size="14">Ramp pile too small for on-chain.</text>
+<text x="40" y="168" fill="#F4F1EA" font-size="14">Use Lightning or leave it.</text>
+<rect x="24" y="210" width="170" height="44" rx="8" fill="#1F6F66"/>
+<rect x="194" y="210" width="172" height="44" rx="8" fill="#C4A574"/>
+<text x="109" y="238" fill="#F4F1EA" text-anchor="middle" font-size="13">50% liquid</text>
+<text x="280" y="238" fill="#0B1220" text-anchor="middle" font-size="13">50% NFT</text>
+</svg>

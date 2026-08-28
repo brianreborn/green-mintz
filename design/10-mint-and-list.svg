@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" width="390" height="844">
+<rect width="390" height="844" rx="28" fill="#0B1220"/>
+<text x="24" y="48" fill="#F4F1EA" font-size="22">green-mintz</text>
+<rect x="270" y="28" width="96" height="32" rx="8" fill="#9F1239"/>
+<text x="318" y="50" fill="#F4F1EA" font-size="12" text-anchor="middle">STOP</text>
+<text x="24" y="88" fill="#F4F1EA" font-size="20">List this as an NFT</text>
+<text x="24" y="190" fill="#F4F1EA">Chain: Solana  Base  Ethereum-if-required</text>
+<rect x="24" y="260" width="342" height="50" rx="10" fill="#3A2A12"/>
+<text x="40" y="290" fill="#F4D27A" font-size="13">Mint to YOUR wallet. No Grok custody.</text>
+<rect x="24" y="328" width="342" height="48" rx="10" fill="#1F6F66"/>
+<text x="195" y="358" fill="#F4F1EA" text-anchor="middle">Open wallet to sign</text>
+</svg>
