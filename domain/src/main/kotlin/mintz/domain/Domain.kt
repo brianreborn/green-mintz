@@ -20,7 +20,7 @@ enum class ExitAction { WAIT, SELL_NOW, SELL_AT_EXPIRY }
 
 enum class ShareKind { ART, SCREENSHOT, NOTE }
 
-enum class ActionKind { POOL_MATH, VENUE_WALLET, HOP, MINT, STOP, BOOK_ORDER }
+enum class ActionKind { POOL_MATH, VENUE_WALLET, HOP, MINT, STOP, BOOK_ORDER, NFT_ORDER }
 
 enum class Side { BUY, SELL }
 
@@ -71,6 +71,7 @@ data class CoachState(
     val coinbaseWeight: Int = 100,
     val mineArmed: Boolean = false,
     val bookArmed: Boolean = false,
+    val rapid: RapidPolicy = RapidPolicy(),
 )
 
 fun defaultSplit(): PoolSplit = PoolSplit(50, 50)
@@ -217,17 +218,20 @@ fun needsUserConfirm(mode: ConfirmMode, kind: ActionKind): Boolean {
     if (kind == ActionKind.STOP) return false
     if (mode == ConfirmMode.PRODUCTION && kind == ActionKind.POOL_MATH) return false
     if (mode == ConfirmMode.PRODUCTION && kind == ActionKind.BOOK_ORDER) return false
+    if (mode == ConfirmMode.PRODUCTION && kind == ActionKind.NFT_ORDER) return false
     return true
 }
 
 fun stop(state: CoachState): CoachState =
-    state.copy(stopped = true, mineArmed = false, bookArmed = false)
+    state.copy(stopped = true, mineArmed = false, bookArmed = false, rapid = RapidPolicy())
 
 fun parseUtterance(raw: String): Utterance {
     val s = raw.trim().lowercase()
     if (s.isEmpty()) return Utterance.Unknown(raw)
     if (s == "stop" || s == "kill it" || s.contains("something is wrong")) return Utterance.Stop
     if (s == "arm book" || s == "start watching" || s == "arm") return Utterance.ArmBook
+    if (s == "arm rapid" || s == "rapid" || s.contains("trade fast")) return Utterance.ArmRapid
+    if (s == "paper" || s == "paper book") return Utterance.PaperBook
     if (s == "disarm" || s == "disarm book") return Utterance.DisarmBook
     if (s == "convert" || s == "convert btc") return Utterance.ConvertBtc
     Regex("""set split (\d+)\s*/\s*(\d+)""").find(s)?.let {
@@ -246,6 +250,8 @@ fun parseUtterance(raw: String): Utterance {
 sealed class Utterance {
     data object Stop : Utterance()
     data object ArmBook : Utterance()
+    data object ArmRapid : Utterance()
+    data object PaperBook : Utterance()
     data object DisarmBook : Utterance()
     data object ConvertBtc : Utterance()
     data class SetSplit(val split: PoolSplit) : Utterance()

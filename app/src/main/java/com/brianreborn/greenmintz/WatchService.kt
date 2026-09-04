@@ -19,9 +19,15 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import mintz.broker.CoinbaseClient
 import mintz.domain.ActionKind
+import mintz.domain.NftAction
+import mintz.domain.RAPID_MAX_QUOTE_USDC
+import mintz.domain.RAPID_TICK_MS
+import mintz.domain.RapidPolicy
+import mintz.domain.defaultAltBook
 import mintz.domain.defaultLiquidBook
 import mintz.domain.needsUserConfirm
 import mintz.domain.planBook
+import mintz.domain.planNftSleeve
 
 class WatchService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -47,7 +53,7 @@ class WatchService : Service() {
             } catch (e: Exception) {
                 CoachStore.bookError(e.message ?: e.javaClass.simpleName)
             }
-            delay(20_000)
+            delay(if (CoachStore.state.value.rapidAlts) RAPID_TICK_MS else 20_000)
         }
     }
 
@@ -69,18 +75,39 @@ class WatchService : Service() {
         val balances = client.listBalances()
         CoachStore.setBalances(balances)
         val opens = client.listOpenOrderIds()
-        val marks = client.bestBidAsk(defaultLiquidBook().map { it.productId })
+        val want = if (s.rapidAlts) defaultAltBook() else defaultLiquidBook()
+        val marks = client.bestBidAsk(want.map { it.productId })
+        val live = want.filter { p -> marks.any { it.productId.equals(p.productId, true) } }
+            .ifEmpty { defaultLiquidBook() }
+        val policy = RapidPolicy(alts = s.rapidAlts, nfts = s.rapidNfts, paper = s.paperBook)
         val plan = planBook(
             balances = balances,
             marks = marks,
             split = s.split,
+            book = live,
             convertBtc = s.convertArmed,
             stopped = s.stopped,
             bookArmed = s.bookArmed,
             hasOpenOrders = opens.isNotEmpty(),
+            bandPct = if (s.rapidAlts) 3 else 10,
+            maxQuoteUsdc = if (s.rapidAlts) RAPID_MAX_QUOTE_USDC else Double.MAX_VALUE,
+        )
+        val nft = planNftSleeve(
+            venues = s.venues,
+            nftBudgetUsdc = plan.targets.firstOrNull { it.currency == "USDC" }?.targetUsdc ?: 0.0,
+            floors = emptyList(),
+            policy = policy,
+            stopped = s.stopped,
         )
         CoachStore.setPlanNotes(plan)
+        if (nft.any { it.action != NftAction.HOLD && it.action != NftAction.SKIP }) {
+            CoachStore.bookNote(nft.joinToString(" ") { it.reason })
+        }
         if (plan.intents.isEmpty()) return
+        if (s.paperBook) {
+            CoachStore.bookNote("Paper: " + plan.intents.joinToString { "${it.side} ${it.productId}" })
+            return
+        }
         for (intent in plan.intents) {
             if (CoachStore.state.value.stopped || !CoachStore.state.value.bookArmed) return
             val body = buildString {

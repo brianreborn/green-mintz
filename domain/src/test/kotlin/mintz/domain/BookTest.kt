@@ -88,6 +88,7 @@ class BookTest {
         assertFalse(isAllowedBrokerPath("/api/v3/brokerage/orders/do-withdraw"))
         assertFalse(isAllowedBrokerPath("/api/v3/brokerage/convert"))
         assertTrue(isAllowedProduct("BTC-USDC"))
+        assertTrue(isAllowedProduct("LINK-USDC"))
         assertFalse(isAllowedProduct("BTC-USD"))
         assertFalse(isAllowedProduct("BTC-USDT"))
     }
@@ -110,19 +111,48 @@ class BookTest {
         assertTrue(needsUserConfirm(ConfirmMode.DEVELOPMENT, ActionKind.BOOK_ORDER))
         assertFalse(needsUserConfirm(ConfirmMode.PRODUCTION, ActionKind.BOOK_ORDER))
         assertTrue(needsUserConfirm(ConfirmMode.PRODUCTION, ActionKind.HOP))
+        assertFalse(needsUserConfirm(ConfirmMode.PRODUCTION, ActionKind.NFT_ORDER))
     }
 
     @Test
     fun stopDisarmsBook() {
-        val halted = stop(CoachState(bookArmed = true, mineArmed = true))
+        val halted = stop(CoachState(bookArmed = true, mineArmed = true, rapid = RapidPolicy(alts = true)))
         assertTrue(halted.stopped)
         assertFalse(halted.bookArmed)
         assertFalse(halted.mineArmed)
+        assertFalse(halted.rapid.armed)
+    }
+
+    @Test
+    fun altBookAndRapidNftWhenNecessary() {
+        assertEquals(100, defaultAltBook().sumOf { it.weight })
+        val plan = planBook(
+            balances = listOf(Balance("USDC", 10_000.0)),
+            marks = marks,
+            split = PoolSplit(50, 50),
+            book = defaultAltBook(),
+            bandPct = RAPID_BAND_PCT,
+            maxQuoteUsdc = RAPID_MAX_QUOTE_USDC,
+        )
+        assertTrue(plan.intents.isNotEmpty())
+        assertTrue(plan.intents.all { it.quoteSize == null || it.quoteSize!! <= RAPID_MAX_QUOTE_USDC + 0.01 })
+        val dump = planNftSleeve(
+            venues = defaultNftVenues(),
+            nftBudgetUsdc = 500.0,
+            floors = listOf(FloorMark("tensor", "col", 90.0, 100.0)),
+            policy = RapidPolicy(nfts = true, paper = true),
+            stopped = false,
+        )
+        assertTrue(dump.any { it.venueId == "tensor" && it.action == NftAction.SELL_NOW })
+        val off = planNftSleeve(defaultNftVenues(), 500.0, emptyList(), RapidPolicy(), false)
+        assertTrue(off.all { it.action == NftAction.HOLD })
     }
 
     @Test
     fun armUtterances() {
         assertEquals(Utterance.ArmBook, parseUtterance("arm book"))
+        assertEquals(Utterance.ArmRapid, parseUtterance("arm rapid"))
+        assertEquals(Utterance.PaperBook, parseUtterance("paper"))
         assertEquals(Utterance.DisarmBook, parseUtterance("disarm"))
         assertEquals(Utterance.ConvertBtc, parseUtterance("convert btc"))
     }

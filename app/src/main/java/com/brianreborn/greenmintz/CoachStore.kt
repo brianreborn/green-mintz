@@ -76,6 +76,9 @@ data class CoachUiState(
     val speak: String = "",
     val bookArmed: Boolean = false,
     val convertArmed: Boolean = false,
+    val rapidAlts: Boolean = false,
+    val rapidNfts: Boolean = false,
+    val paperBook: Boolean = true,
     val keyPresent: Boolean = false,
     val keyLabel: String = "no key on this phone",
     val balances: List<Balance> = emptyList(),
@@ -175,6 +178,8 @@ object CoachStore {
                 stopped = true,
                 bookArmed = false,
                 convertArmed = false,
+                rapidAlts = false,
+                rapidNfts = false,
                 hopPhase = HopPhase.IDLE,
                 lastLine = "Stopped. Cancel open Coinbase orders. Revoke the view+trade key. Nothing keeps buying.",
                 pending = null,
@@ -339,8 +344,45 @@ object CoachStore {
         )
     }
 
+    fun armRapid() {
+        propose(
+            Pending(
+                kind = ActionKind.BOOK_ORDER,
+                title = "Arm rapid alts + NFTs",
+                body = "5s ticks. Coinbase *-USDC alts auto. NFT sleeve only trades when floor dumps or is cheap. Caps 50 USDC/order. Transfer off. STOP cancels.",
+                apply = {
+                    _state.update {
+                        it.copy(
+                            bookArmed = true,
+                            rapidAlts = true,
+                            rapidNfts = true,
+                            paperBook = false,
+                            confirmMode = ConfirmMode.PRODUCTION,
+                            stopped = false,
+                            tab = Tab.BOOK,
+                            lastLine = "Rapid on. Alts 5s. NFT when necessary.",
+                        )
+                    }
+                    app?.let { WatchService.start(it) }
+                },
+            ),
+        )
+    }
+
+    fun setPaper(v: Boolean) = _state.update {
+        it.copy(paperBook = v, lastLine = if (v) "Paper book. Plans only." else "Live book.")
+    }
+
     fun disarmBook() {
-        _state.update { it.copy(bookArmed = false, convertArmed = false, lastLine = "Book disarmed.") }
+        _state.update {
+            it.copy(
+                bookArmed = false,
+                convertArmed = false,
+                rapidAlts = false,
+                rapidNfts = false,
+                lastLine = "Book disarmed.",
+            )
+        }
         app?.let { WatchService.stop(it) }
     }
 
@@ -381,6 +423,8 @@ object CoachStore {
             }
             is Utterance.ListArt -> _state.update { it.copy(tab = Tab.ART) }
             is Utterance.ArmBook -> armBook()
+            is Utterance.ArmRapid -> armRapid()
+            is Utterance.PaperBook -> setPaper(true)
             is Utterance.DisarmBook -> disarmBook()
             is Utterance.ConvertBtc -> armConvert()
             is Utterance.Holdings -> _state.update {
@@ -389,7 +433,7 @@ object CoachStore {
                 )
             }
             is Utterance.Unknown -> _state.update {
-                it.copy(lastLine = "Try: set split 70/30 · arm book · convert btc · zero Blur · stop")
+                it.copy(lastLine = "Try: arm rapid · paper · arm book · convert btc · stop")
             }
             else -> Unit
         }

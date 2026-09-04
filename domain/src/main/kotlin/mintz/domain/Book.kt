@@ -85,7 +85,7 @@ fun isAllowedBrokerPath(path: String): Boolean {
 fun isAllowedProduct(productId: String): Boolean {
     val id = productId.uppercase()
     if (!id.endsWith("-USDC")) return false
-    return defaultLiquidBook().any { it.productId.equals(id, ignoreCase = true) }
+    return id in allowedProducts()
 }
 
 fun allowedBrokerPath(path: String): Boolean = isAllowedBrokerPath(path)
@@ -109,6 +109,7 @@ fun planBook(
     bookArmed: Boolean = true,
     hasOpenOrders: Boolean = false,
     bandPct: Int = REBALANCE_BAND_PCT,
+    maxQuoteUsdc: Double = Double.MAX_VALUE,
 ): BookPlan {
     val notes = mutableListOf<String>()
     val byCcy = balances.groupingBy { it.currency.uppercase() }
@@ -180,8 +181,8 @@ fun planBook(
             )
         }
     }
-    intents += sells
-    intents += buys
+    intents += sells.map { capIntent(it, maxQuoteUsdc) }
+    intents += buys.map { capIntent(it, maxQuoteUsdc) }
     if (intents.isEmpty()) notes += "Drift inside ${bandPct}% band. Watching."
     else notes += "Sells first, then buys. NFT sleeve stays USDC."
     return BookPlan(total, targets, intents, notes)
