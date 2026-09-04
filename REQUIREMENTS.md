@@ -1,43 +1,84 @@
-# green-mintz SRS (repo export)
+# green-mintz — Grok Bot + web + auto-trade
 
-Contract of record: `interface-schemas.json` v1.5.0.
-Product: **green-mintz**. Grok is the interface. Cash App is only the hop.
-Word original: `GrokBot-Trading-System-Requirements.docx` in the project folder.
+Status: draft 2026-09-04. Does not change the live APK until you accept this.
 
-## Intent
+## Goal
 
-Mint, commission, buy, sell, and trade art as NFTs. Liquid `*-USDC` on Coinbase Advanced Trade funds that book. User steers pools. System picks tickets. User watches. Stop is always one control away.
+Same product, three surfaces:
 
-## Rails
+| Surface | Job |
+|---|---|
+| Grok Bot (this chat) | Coach, STOP, arm/disarm, read-only status |
+| Web PWA | iPhone / desktop / anything that is not the spare Android |
+| Android APK | Share-target, Lightning hop checklist, on-device vault, WatchService |
 
-- In preferred: Cash App Lightning (pay from BTC balance) to a Coinbase Lightning invoice the user creates. Grok never supplies an invoice or address.
-- In fallback: sell to dollars on Cash App, send USDC on Solana/Base to the user's Coinbase USDC address.
-- In locked: on-chain BTC under Cash App free Standard floor (~100,000 sats).
-- Trade fungible: Coinbase Advanced Trade, view+trade key, transfer off.
-- Trade NFT: Blur, Tensor, Chadbot, Magic Eden, OpenSea/Reservoir, AgentVault, Bonsai, Botmesh (discovery).
-- Commissions: VGen and Fantia as tap-lists. Do not scrape or auto-post. Do not mint a client exclusive without a rights flag.
-- Out: return hop to the user's Cash App receive. Dollars via native Cash App Sell + Cash Out.
+Coinbase remains the **source of truth**. Devices do not sync a second ledger. They all read the same View+Trade account.
 
-## Pools
+## What “completely automatic” means (and does not)
 
-Default 50 liquid crypto / 50 NFT. Venue weights renormalize. Zero weight = no new capital. Rebalance when drift > 10%.
+**Does:** after you arm **production** and a hop has landed on **your** Coinbase, the book places `*-USDC` market IOC orders with no per-order tap. STOP still cancels open orders. Transfer stays off.
 
-## UX
+**Does not:** send Bitcoin to Grok, xAI, or this chat. There is still no receive address and no Lightning invoice here. A bot that “has the transfer” is **your Coinbase**, not a Grok wallet.
 
-Android 1080x2400. Screens: Home pools, Venues, Retrieve, Art, Share inbox. STOP always visible. No addresses in chat. Dev confirms every step. Production auto-accepts pool math only.
+Minting automatic is a **separate arm**. Listing still needs a signer you control (Phantom / Coinbase Wallet / a mint key you pasted into the same vault). Grok never holds the art file as custody.
 
-## Supervision
+## Runtimes
 
-User watches. Stop = cancel Coinbase orders + revoke key. Never press Cash App Confirm. Never Accessibility on Cash App.
+1. **Android (exists)** — EncryptedSharedPreferences vault, foreground WatchService, share inbox, VGen/Fantia tap-open.
+2. **Grok Bot (new)** — utterance in, domain out. Tools: balances, plan, arm, STOP. No CDP JSON in the thread after the first paste; paste goes to the vault on the device that will trade.
+3. **Web PWA (exists as preview shell, broker missing)** — same tabs. Browser cannot call `api.coinbase.com` from grok.com (CORS). Needs a **user-owned relay**: Android WatchService already is one; or a tiny worker you run; or GitHub Actions on a schedule. Grok’s servers must not store the PEM.
+4. **Durable tick (needed for auto when the phone sleeps / chat is idle)** — GitHub Actions cron or Grok Automations that call the **relay**, not Coinbase directly with a key in the prompt.
 
-## Testing
+Default confirm mode stays **development** until you say `arm production`.
 
-Japanglify split: `./gradlew :domain:test` on a JDK. Spare unrooted phone for the Android shell. No Android VM KYC as Grok.
+## Must-have before bot auto-trade is real
 
-## KernelSU
+- Production arm is an explicit utterance and a second confirm the first time only
+- Hard caps: max USDC per order, max USDC per day, halt if drawdown from session high exceeds a band you set
+- Paper book: same `planBook`, zero `createOrder`
+- Heartbeat: last successful Coinbase tick age; if stale, treat as disarmed
+- Audit log on-device (and optional private GitHub issue/release note): time, product, side, size, order id
+- STOP from chat, web, or Android all cancel open orders
+- Key never logged, never in HANDOFF, never in a Grok prompt after vault save
+- Transfer / withdraw / convert / addresses still allow-listed out
 
-Optional, off. Local mine/mint resource caps only. No su into other apps.
+## Should-have (web + other platforms)
 
-## Out of scope
+- PWA install on iOS Safari and desktop (same UI as the preview)
+- Hop checklists that work without Android Share (copy/paste Lightning amount you Confirm in Cash App)
+- Pick-image on web for art; VGen/Fantia still `window.open` tap-lists
+- Preset splits (50/50, 70/30, 100 liquid, 100 NFT dry powder)
+- Session banner: DEV vs PRODUCTION vs STOPPED vs HEARTBEAT STALE
+- Notify path: Android notification (exists), plus optional X/Discord webhook you own
 
-Bank, ACH, debit, Auto Invest as engine, Custom Orders as engine, Grok custody, leverage, Reddit spam, mint snipers.
+## Minting (bot cannot sign for you unless you give it a key)
+
+Keep tap-list as the default. Optional later:
+
+- **Mint key vault** (separate from CDP, same encryption). Only used if you arm mint.
+- Metadata JSON + image stay on-device; mint to **your** wallet on Solana first, Base second
+- Client-exclusive commission still requires the rights flag
+- No scrape, no auto-post to VGen/Fantia
+
+## Will not
+
+- Grok/xAI custody address or invoice
+- Accessibility / auto-press Cash App Confirm
+- Register Coinbase or Cash App as Grok
+- Withdraw or transfer off Coinbase
+- KYC as Grok
+- Drive VGen/Fantia UI
+
+## Suggested build order
+
+1. Paper book + caps + heartbeat on Android (proves auto math without new risk)
+2. Web PWA wired to **read-only** Coinbase via a relay you control (balances/plan only)
+3. Grok Bot status/STOP/arm as a thin client of that same relay
+4. Production auto on the relay with caps
+5. Optional mint-key arm
+
+## Open questions for you
+
+1. Is the durable tick the spare Android (already works), or do you want GitHub Actions / a VPS even when the phone is off?
+2. Paper book first, or skip to live production auto?
+3. Mint stays tap-list for alpha, or do you want a mint key vault in the same release?
